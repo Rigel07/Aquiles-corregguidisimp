@@ -4,9 +4,8 @@ on:
   push:
     branches:
       - main
+      - master
   pull_request:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
@@ -14,35 +13,54 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Descargar código
+      - name: Descargar codigo
         uses: actions/checkout@v4
 
-      - name: Configurar Java 17
+      - name: Java 17
         uses: actions/setup-java@v4
         with:
+          distribution: temurin
           java-version: '17'
-          distribution: 'temurin'
 
       - name: Configurar Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.8'
 
-      - name: Limpiar proyecto
-        run: gradle clean --no-daemon
-
-      - name: Compilar Achilles
-        run: gradle build --no-daemon
-
-      - name: Mostrar archivos generados
+      - name: Comprobar codigo fuente
         run: |
-          echo "=== build/libs ==="
-          ls -lah build/libs
+          echo "=== ARCHIVOS JAVA ==="
+          find src/main/java -name "*.java" -print
           echo ""
-          echo "=== contenido de los JAR ==="
-          for file in build/libs/*.jar; do
-            echo "--- $file ---"
-            unzip -l "$file"
+          echo "Cantidad de Java:"
+          find src/main/java -name "*.java" | wc -l
+
+      - name: Compilar
+        run: gradle clean build --no-daemon --stacktrace
+
+      - name: Comprobar compilacion
+        run: |
+          echo "=== CLASES COMPILADAS ==="
+          find build/classes/java/main -type f | head -100 || true
+          echo ""
+          echo "Cantidad de clases:"
+          find build/classes/java/main -type f | wc -l || true
+
+      - name: Comprobar JAR
+        run: |
+          echo "=== BUILD/LIBS ==="
+          ls -lah build/libs
+
+          echo ""
+          echo "=== JARS ==="
+          for jar in build/libs/*.jar; do
+            echo "================================"
+            echo "$jar"
+            echo "Tamano:"
+            ls -lh "$jar"
+            echo ""
+            echo "Contenido:"
+            unzip -l "$jar" | head -100
           done
 
       - name: Subir JAR
@@ -50,3 +68,4 @@ jobs:
         with:
           name: achilles-build
           path: build/libs/*.jar
+          if-no-files-found: error
