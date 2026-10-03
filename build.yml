@@ -2,50 +2,51 @@ name: Build Achilles
 
 on:
   push:
-    branches: [ main, master ]
-    tags: [ 'v*' ]
+    branches:
+      - main
   pull_request:
+    branches:
+      - main
   workflow_dispatch:
-
-permissions:
-  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Descargar codigo
+      - name: Descargar código
         uses: actions/checkout@v4
 
-      - name: Java 17
+      - name: Configurar Java 17
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: 17
+          java-version: '17'
+          distribution: 'temurin'
 
       - name: Configurar Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: 8.8
+          gradle-version: '8.8'
 
-      - name: Comprobar estructura
-        run: |
-          test -f build.gradle
-          test -d src/main/java
-          test -f src/main/resources/META-INF/mods.toml
-          echo "Java encontrados: $(find src/main/java -name '*.java' | wc -l)"
+      - name: Limpiar proyecto
+        run: gradle clean --no-daemon
 
       - name: Compilar Achilles
-        run: gradle build --no-daemon --stacktrace
+        run: gradle build --no-daemon
+
+      - name: Mostrar archivos generados
+        run: |
+          echo "=== build/libs ==="
+          ls -lah build/libs
+          echo ""
+          echo "=== contenido de los JAR ==="
+          for file in build/libs/*.jar; do
+            echo "--- $file ---"
+            unzip -l "$file"
+          done
 
       - name: Subir JAR
         uses: actions/upload-artifact@v4
         with:
-          name: achilles-1.0.0
+          name: achilles-build
           path: build/libs/*.jar
-
-      - name: Publicar release con tag
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: build/libs/*.jar
